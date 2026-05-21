@@ -55,6 +55,73 @@
   }
   #aviso b { color: #ffe066; }
 
+  /* ============ Tela inicial (escolha de nome) ============ */
+  #tela-inicial {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 10, 0.94);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .dialogo-inicial {
+    background: #2a2a2a;
+    border: 3px solid #ffe066;
+    border-radius: 12px;
+    padding: 24px 28px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+  }
+  .dialogo-inicial h2 {
+    color: #ffe066;
+    margin-bottom: 8px;
+    font-size: 22px;
+  }
+  .dialogo-inicial p {
+    margin-bottom: 18px;
+    font-size: 13px;
+    line-height: 1.5;
+    opacity: 0.85;
+  }
+  .dialogo-inicial label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 6px;
+    text-align: left;
+    color: #ffe066;
+  }
+  .dialogo-inicial input {
+    width: 100%;
+    padding: 11px 12px;
+    font-size: 16px;
+    font-family: monospace;
+    background: #1a1a1a;
+    border: 2px solid #555;
+    border-radius: 6px;
+    color: #fff;
+    margin-bottom: 16px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .dialogo-inicial input:focus { border-color: #ffe066; }
+  .dialogo-inicial button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    font-family: monospace;
+    background: #ffe066;
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  .dialogo-inicial button:hover, .dialogo-inicial button:active { background: #ffd333; }
+
   /* ============ Controles touch (ocultos em desktop) ============ */
   #palco { position: relative; }
   #touch-overlay { display: none; }
@@ -186,6 +253,15 @@
 </style>
 </head>
 <body>
+  <div id="tela-inicial">
+    <div class="dialogo-inicial">
+      <h2>🎾 Pegue o Juquinha!</h2>
+      <p>Arremesse a bolinha, pegue as 2 bônus e recupere a azul do Juquinha em <b>20 segundos</b>. Cuidado com o buraco! 🕳️</p>
+      <label for="nome-input">Como você se chama?</label>
+      <input id="nome-input" type="text" maxlength="20" placeholder="Seu nome" autocomplete="off" spellcheck="false">
+      <button id="btn-comecar">Começar 🚀</button>
+    </div>
+  </div>
   <h1>🐕 Brincando com o Juquinha</h1>
   <div class="hud">
     <div>Capturas: <span id="capturas">0</span></div>
@@ -575,6 +651,7 @@ let estadoBola = ESTADOS.COM_PESSOA;
 let capturas = 0;
 let sprites = {};
 let gameOver = false;
+let nomeJogador = 'Jogador';
 
 // ============== BALÕES DE FALA (Rhayssa chamando Juquinha) ==============
 const FRASES_RHAYSSA = [
@@ -699,7 +776,7 @@ function pararDesafio() {
 
 function rhayssaCansou() {
   gameOver = true;
-  aviso.innerHTML = 'Rhayssa cansou! 😴<br><br><b>Aperte ENTER pra recomeçar</b>';
+  aviso.innerHTML = nomeJogador + ' cansou! 😴<br><br><b>Aperte ENTER pra recomeçar</b>';
   aviso.style.display = 'block';
 }
 
@@ -725,7 +802,7 @@ function updateDesafio() {
   // venceu — pegou tudo
   if (DESAFIO.vermelha.pegou && DESAFIO.amarela.pegou && DESAFIO.azulRecuperada) {
     pararDesafio();
-    hudEstado.textContent = 'Boa, Rhayssa! Jogue de novo 🎾';
+    hudEstado.textContent = 'Boa, ' + nomeJogador + '! Jogue de novo 🎾';
     return;
   }
 
@@ -1268,6 +1345,31 @@ function frame() {
   renderBalao();
   requestAnimationFrame(frame);
 }
+
+// ============== TELA INICIAL (escolha do nome) ==============
+const telaInicialEl = document.getElementById('tela-inicial');
+const nomeInputEl = document.getElementById('nome-input');
+const btnComecarEl = document.getElementById('btn-comecar');
+
+const nomeSalvo = localStorage.getItem('juquinha-nome');
+if (nomeSalvo) nomeInputEl.value = nomeSalvo;
+
+function comecarJogo() {
+  const valor = nomeInputEl.value.trim();
+  if (valor.length > 0) {
+    nomeJogador = valor;
+    localStorage.setItem('juquinha-nome', valor);
+  }
+  telaInicialEl.style.display = 'none';
+  nomeInputEl.blur();
+}
+btnComecarEl.addEventListener('click', e => { e.preventDefault(); comecarJogo(); });
+btnComecarEl.addEventListener('touchstart', e => { e.preventDefault(); comecarJogo(); }, { passive: false });
+nomeInputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); comecarJogo(); }
+});
+// foca o input ao carregar (com pequeno delay pra funcionar bem no mobile)
+setTimeout(() => nomeInputEl.focus(), 100);
 
 // ============== INÍCIO ==============
 function iniciar() {
