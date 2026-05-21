@@ -1,6 +1,6 @@
 # 🐕 Pegue o Juquinha
 
-Joguinho 2D em pixel art onde a personagem (Rhayssa) arremessa uma bolinha de tênis, o cachorro **Juquinha** corre buscar, e depois ela precisa correr atrás dele pra recuperar — dentro de 20 segundos e ainda coletando 2 bolinhas bônus pelo mapa.
+Joguinho 2D em pixel art onde a personagem arremessa uma bolinha de tênis, o cachorro **Juquinha** corre buscar, e depois ela precisa correr atrás dele pra recuperar — dentro de 20 segundos e ainda coletando 2 bolinhas bônus pelo mapa.
 
 ## Como jogar
 
