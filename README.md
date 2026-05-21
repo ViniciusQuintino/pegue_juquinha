@@ -5,7 +5,7 @@ Joguinho 2D em pixel art onde a personagem arremessa uma bolinha de tênis, o ca
 ## Como jogar
 
 **Teclado (PC):**
-- `Setas` ou `WASD` — mover a Rhayssa
+- `Setas` ou `WASD` — mover a personagem
 - `Espaço` — arremessar a bolinha
 - `Enter` — recomeçar após game over
 
