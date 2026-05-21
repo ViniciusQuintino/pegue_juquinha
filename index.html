@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Brincando com o Juquinha</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1a1a;
+    color: #eee;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+    user-select: none;
+  }
+  h1 { margin-bottom: 8px; font-size: 18px; }
+  .hud {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .hud span { color: #ffe066; }
+  canvas {
+    border: 3px solid #444;
+    image-rendering: pixelated;
+    background: #b8b8a8;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  .controles {
+    margin-top: 10px;
+    font-size: 12px;
+    opacity: 0.7;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .controles b { color: #ffe066; }
+  #aviso {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85);
+    padding: 20px 30px;
+    border: 3px solid #ff3030;
+    border-radius: 8px;
+    font-size: 20px;
+    text-align: center;
+    display: none;
+    z-index: 10;
+  }
+  #aviso b { color: #ffe066; }
+
+  /* ============ Controles touch (ocultos em desktop) ============ */
+  #palco { position: relative; }
+  #touch-overlay { display: none; }
+  #aviso-rotacionar { display: none; }
+
+  /* dispositivos touch */
+  @media (pointer: coarse) {
+    html, body { height: 100%; height: 100dvh; }
+    body { padding: 0; overflow: hidden; }
+    h1, .controles { display: none; }
+    #palco {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      max-width: 100vw;
+      max-height: 100vh;
+      max-height: 100dvh;
+      object-fit: contain;
+      border: none;
+    }
+    .hud {
+      position: fixed;
+      top: 6px;
+      left: 6px;
+      z-index: 5;
+      font-size: 11px;
+      background: rgba(0,0,0,0.55);
+      padding: 4px 8px;
+      border-radius: 4px;
+      gap: 10px;
+      flex-wrap: wrap;
+      max-width: calc(100vw - 12px);
+    }
+    #touch-overlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+      touch-action: none;
+    }
+    #joystick {
+      position: absolute;
+      bottom: 28px;
+      left: 28px;
+      width: 130px;
+      height: 130px;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.4);
+      border-radius: 50%;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    #joystick-stick {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 54px;
+      height: 54px;
+      margin: -27px 0 0 -27px;
+      background: rgba(255,255,255,0.55);
+      border: 2px solid rgba(255,255,255,0.7);
+      border-radius: 50%;
+    }
+    #btn-arremesso {
+      position: absolute;
+      bottom: 28px;
+      right: 28px;
+      width: 96px;
+      height: 96px;
+      background: rgba(255,180,80,0.7);
+      border: 3px solid rgba(255,255,255,0.7);
+      border-radius: 50%;
+      font-size: 40px;
+      color: #fff;
+      pointer-events: auto;
+      touch-action: manipulation;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #btn-arremesso:active { background: rgba(255,140,30,0.9); transform: scale(0.95); }
+    #btn-reiniciar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 54px;
+      height: 54px;
+      background: rgba(60,60,60,0.65);
+      border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 50%;
+      font-size: 22px;
+      color: #fff;
+      pointer-events: auto;
+      touch-action: manipulation;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #btn-reiniciar:active { transform: scale(0.92); background: rgba(40,40,40,0.85); }
+  }
+
+  /* portrait em mobile: pede pra virar */
+  @media (pointer: coarse) and (orientation: portrait) {
+    #palco, .hud, #touch-overlay { display: none !important; }
+    #aviso-rotacionar {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      color: #ffe066;
+      font-size: 22px;
+      text-align: center;
+      padding: 30px;
+      z-index: 999;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>🐕 Brincando com o Juquinha</h1>
+  <div class="hud">
+    <div>Capturas: <span id="capturas">0</span></div>
+    <div>Tempo: <span id="timer">--</span></div>
+    <div>Bônus: <span id="bonus">-/2</span></div>
+    <div>Estado: <span id="estado">pegue a bolinha</span></div>
+  </div>
+  <div id="palco">
+    <canvas id="game" width="960" height="640"></canvas>
+    <div id="touch-overlay">
+      <div id="joystick">
+        <div id="joystick-stick"></div>
+      </div>
+      <button id="btn-arremesso" aria-label="Arremessar bolinha">🎾</button>
+      <button id="btn-reiniciar" aria-label="Reiniciar jogo">🔄</button>
+    </div>
+  </div>
+  <div class="controles">
+    <b>Setas / WASD</b> — mover &nbsp;|&nbsp; <b>Espaço</b> — arremessar bolinha
+    <br>Cuidado com o buraco fora do quarto superior! 🕳️
+  </div>
+  <div id="aviso"></div>
+  <div id="aviso-rotacionar">📱↻<br><br>Vire o celular para o modo paisagem</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const W = canvas.width, H = canvas.height;
+const hudCapturas = document.getElementById('capturas');
+const hudEstado = document.getElementById('estado');
+const hudTimer = document.getElementById('timer');
+const hudBonus = document.getElementById('bonus');
+const aviso = document.getElementById('aviso');
+
+// ============== CARREGAMENTO DE SPRITES (com chroma key magenta) ==============
+function carregaSprite(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = img.width;
+        cv.height = img.height;
+        const c = cv.getContext('2d');
+        c.drawImage(img, 0, 0);
+        let data;
+        try {
+          data = c.getImageData(0, 0, cv.width, cv.height);
+        } catch (e) {
+          console.warn('Chroma key bloqueado por CORS, usando imagem crua:', src);
+          resolve(img);
+          return;
+        }
+        const px = data.data;
+        for (let i = 0; i < px.length; i += 4) {
+          const r = px[i], g = px[i+1], b = px[i+2];
+          if (r > 180 && b > 100 && g < 120 && Math.abs(r - b) < 120) {
+            px[i+3] = 0;
+          }
+        }
+        c.putImageData(data, 0, 0);
+        resolve(cv);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = () => reject(new Error('Não carregou ' + src));
+    img.src = src;
+  });
+}
+
+// ============== PALETA ==============
+const COR = {
+  cimento: '#b8b8a8',
+  cimentoEscuro: '#a8a89a',
+  piso: '#c9a96e',
+  parede: '#4a3220',
+  paredeTopo: '#6a4a30',
+  movel: '#8b5a2b',
+  movelEscuro: '#6b3f1c',
+  metal: '#555',
+  metalEscuro: '#333',
+  carroBranco: '#e8e8e8',
+  caminhonete: '#2a4d8f',
+  vidro: '#88c0ff',
+  tela: '#1a1a2a',
+  pia: '#aac4d8',
+  porta: '#3a2410',
+};
+
+// ============== FUNÇÕES DE DESENHO DO MAPA ==============
+function desenhaCimento() {
+  ctx.fillStyle = COR.cimento;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = COR.cimentoEscuro;
+  for (let y = 0; y < H; y += 8) {
+    for (let x = 0; x < W; x += 8) {
+      if ((x * 7 + y * 13) % 29 < 3) ctx.fillRect(x, y, 4, 4);
+    }
+  }
+  ctx.strokeStyle = COR.cimentoEscuro;
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) {
+    const sx = (i * 173) % W;
+    const sy = (i * 251) % H;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + 40, sy + 20);
+    ctx.lineTo(sx + 70, sy + 10);
+    ctx.stroke();
+  }
+}
+
+function desenhaComodo(x, y, w, h, portas = []) {
+  const esp = 8;
+  ctx.fillStyle = COR.piso;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = COR.parede;
+  ctx.fillRect(x, y, w, esp);
+  ctx.fillRect(x, y + h - esp, w, esp);
+  ctx.fillRect(x, y, esp, h);
+  ctx.fillRect(x + w - esp, y, esp, h);
+  ctx.fillStyle = COR.paredeTopo;
+  ctx.fillRect(x, y, w, 3);
+  ctx.fillStyle = COR.piso;
+  portas.forEach(p => {
+    if (p.lado === 'baixo') ctx.fillRect(x + p.pos, y + h - esp, p.tam, esp);
+    if (p.lado === 'cima') ctx.fillRect(x + p.pos, y, p.tam, esp);
+    if (p.lado === 'esq') ctx.fillRect(x, y + p.pos, esp, p.tam);
+    if (p.lado === 'dir') ctx.fillRect(x + w - esp, y + p.pos, esp, p.tam);
+  });
+}
+
+function cama(x, y, w = 90, h = 45) {
+  ctx.fillStyle = COR.movel;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#e8d8b0';
+  ctx.fillRect(x + 4, y + 4, w - 8, h - 14);
+  ctx.fillStyle = '#d49090';
+  ctx.fillRect(x + 6, y + 6, w - 12, 8);
+  ctx.fillStyle = COR.movelEscuro;
+  ctx.fillRect(x, y + h - 4, w, 4);
+}
+function sofa(x, y, w, h) {
+  const horizontal = w >= h;
+  ctx.fillStyle = '#7a3a3a';
+  ctx.fillRect(x, y, w, h);
+  if (horizontal) {
+    ctx.fillStyle = '#a05050';
+    ctx.fillRect(x + 4, y + 6, w - 8, h - 12);
+    ctx.fillStyle = '#5a2828';
+    ctx.fillRect(x, y + h - 4, w, 4);
+  } else {
+    ctx.fillStyle = '#a05050';
+    ctx.fillRect(x + 6, y + 4, w - 12, h - 8);
+    ctx.fillStyle = '#5a2828';
+    ctx.fillRect(x, y, 4, h);
+  }
+}
+function mesa(x, y, w, h) {
+  ctx.fillStyle = COR.movelEscuro;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = COR.movel;
+  ctx.fillRect(x + 3, y + 3, w - 6, h - 10);
+}
+function armario(x, y, w, h) {
+  ctx.fillStyle = COR.movelEscuro;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = COR.movel;
+  ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x + w / 2 - 1, y + 3, 2, h - 6);
+}
+function armarioH(x, y, w, h) {
+  ctx.fillStyle = COR.movelEscuro;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = COR.movel;
+  ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+  ctx.fillStyle = '#3a1f0a';
+  ctx.fillRect(x + 3, y + h / 2 - 1, w - 6, 2);
+}
+function fogao(x, y, w, h) {
+  ctx.fillStyle = COR.metalEscuro;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = COR.metal;
+  ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x + 8, y + 8, 8, 8);
+  ctx.fillRect(x + w - 16, y + 8, 8, 8);
+  ctx.fillRect(x + 8, y + 20, 8, 8);
+  ctx.fillRect(x + w - 16, y + 20, 8, 8);
+}
+function tv(x, y, w, h) {
+  const horizontal = w >= h;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = COR.tela;
+  if (horizontal) {
+    ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+    ctx.fillStyle = '#3a3a5a';
+    ctx.fillRect(x + 6, y + 5, 10, 6);
+  } else {
+    ctx.fillRect(x + 3, y + 3, w - 6, h - 10);
+    ctx.fillStyle = '#3a3a5a';
+    ctx.fillRect(x + 5, y + 5, 6, 6);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(x + w / 2 - 4, y + h - 5, 8, 4);
+  }
+}
+function pia(x, y, w, h) {
+  ctx.fillStyle = '#d8d8c8';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = COR.pia;
+  ctx.fillRect(x + 4, y + 8, w - 8, h - 16);
+  ctx.strokeRect(x + 4, y + 8, w - 8, h - 16);
+  ctx.fillStyle = '#777';
+  ctx.fillRect(x + w / 2 - 2, y + 2, 4, 8);
+}
+function carro(x, y, cor, w = 50, h = 90) {
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(x + 3, y + 3, w, h);
+  ctx.fillStyle = cor;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 4, y + 4, w - 8, 2);
+  ctx.fillStyle = COR.vidro;
+  ctx.fillRect(x + 6, y + 8, w - 12, 14);
+  ctx.fillStyle = cor === COR.carroBranco ? '#c0c0c0' : '#1a3060';
+  ctx.fillRect(x + 6, y + 24, w - 12, h - 50);
+  ctx.fillStyle = COR.vidro;
+  ctx.fillRect(x + 6, y + h - 24, w - 12, 12);
+  ctx.fillStyle = '#fff8aa';
+  ctx.fillRect(x + 4, y, 8, 3);
+  ctx.fillRect(x + w - 12, y, 8, 3);
+  ctx.fillStyle = '#aa2020';
+  ctx.fillRect(x + 4, y + h - 3, 8, 3);
+  ctx.fillRect(x + w - 12, y + h - 3, 8, 3);
+}
+function desenhaGaragem(x, y, w, h) {
+  ctx.fillStyle = '#fff';
+  ctx.globalAlpha = 0.4;
+  ctx.fillRect(x + 8, y + 8, w - 16, 2);
+  ctx.fillRect(x + 8, y + 8, 2, 80);
+  ctx.fillRect(x + w - 10, y + 8, 2, 80);
+  ctx.fillRect(x + 8, y + h - 10, w - 16, 2);
+  ctx.fillRect(x + 8, y + h - 90, 2, 80);
+  ctx.fillRect(x + w - 10, y + h - 90, 2, 80);
+  ctx.globalAlpha = 1;
+}
+function desenhaBuraco(x, y, w, h) {
+  ctx.fillStyle = '#4a3020';
+  ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(x, y, w, h);
+  const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+  grad.addColorStop(0, '#2a2a2a');
+  grad.addColorStop(0.5, '#000');
+  grad.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+}
+
+// ============== DEFINIÇÃO DO MAPA ==============
+const COMODOS = [
+  { x: 40, y: 60, w: 220, h: 180, portas: [{ lado: 'dir', pos: 80, tam: 30 }], nome: 'Q1' },
+  { x: 40, y: 380, w: 220, h: 200, portas: [{ lado: 'dir', pos: 100, tam: 30 }], nome: 'Q2' },
+  { x: 560, y: 60, w: 360, h: 180, portas: [{ lado: 'baixo', pos: 290, tam: 30 }], nome: 'Quarto' },
+  { x: 560, y: 240, w: 360, h: 180, portas: [
+    { lado: 'cima', pos: 290, tam: 30 },
+    { lado: 'baixo', pos: 290, tam: 30 },
+    { lado: 'esq', pos: 70, tam: 30 }
+  ], nome: 'Sala' },
+  { x: 560, y: 420, w: 360, h: 200, portas: [
+    { lado: 'cima', pos: 290, tam: 30 },
+    { lado: 'esq', pos: 50, tam: 30 }
+  ], nome: 'Cozinha' }
+];
+
+const MOVEIS = [
+  { tipo: 'armarioH', x: 110, y: 68, w: 80, h: 30 },
+  { tipo: 'cama', x: 50, y: 100, w: 90, h: 45 },
+  { tipo: 'tv', x: 212, y: 80, w: 40, h: 50 },
+  { tipo: 'cama', x: 70, y: 410, w: 90, h: 50 },
+  { tipo: 'armarioH', x: 110, y: 542, w: 80, h: 30 },
+  { tipo: 'cama', x: 580, y: 90, w: 90, h: 50 },
+  { tipo: 'armario', x: 870, y: 80, w: 30, h: 50 },
+  { tipo: 'tv', x: 575, y: 250, w: 80, h: 30 },
+  { tipo: 'sofa', x: 568, y: 350, w: 30, h: 60 },
+  { tipo: 'sofa', x: 600, y: 384, w: 80, h: 28 },
+  { tipo: 'pia', x: 568, y: 552, w: 30, h: 60 },
+  { tipo: 'mesa', x: 700, y: 433, w: 80, h: 40 },
+  { tipo: 'fogao', x: 717, y: 577, w: 45, h: 35 },
+  { tipo: 'armario', x: 882, y: 495, w: 30, h: 60 }
+];
+
+const CARROS = [
+  { x: 335, y: 110, cor: COR.carroBranco, w: 50, h: 90 },
+  { x: 335, y: 380, cor: COR.caminhonete, w: 50, h: 110 }
+];
+
+const BURACO = { x: 120, y: 255, w: 50, h: 50 };
+
+// ============== GERAÇÃO DE OBSTÁCULOS ==============
+function gerarParedesDoComodo(c) {
+  const esp = 8;
+  const { x, y, w, h, portas = [] } = c;
+  const out = [];
+
+  function lados(orientacao) {
+    const ps = portas.filter(p => p.lado === orientacao).sort((a, b) => a.pos - b.pos);
+    let cursor = 0;
+    const total = (orientacao === 'cima' || orientacao === 'baixo') ? w : h;
+    for (const p of ps) {
+      if (p.pos > cursor) {
+        if (orientacao === 'cima') out.push({ x: x + cursor, y, w: p.pos - cursor, h: esp });
+        if (orientacao === 'baixo') out.push({ x: x + cursor, y: y + h - esp, w: p.pos - cursor, h: esp });
+        if (orientacao === 'esq') out.push({ x, y: y + cursor, w: esp, h: p.pos - cursor });
+        if (orientacao === 'dir') out.push({ x: x + w - esp, y: y + cursor, w: esp, h: p.pos - cursor });
+      }
+      cursor = p.pos + p.tam;
+    }
+    if (cursor < total) {
+      if (orientacao === 'cima') out.push({ x: x + cursor, y, w: total - cursor, h: esp });
+      if (orientacao === 'baixo') out.push({ x: x + cursor, y: y + h - esp, w: total - cursor, h: esp });
+      if (orientacao === 'esq') out.push({ x, y: y + cursor, w: esp, h: total - cursor });
+      if (orientacao === 'dir') out.push({ x: x + w - esp, y: y + cursor, w: esp, h: total - cursor });
+    }
+  }
+  lados('cima');
+  lados('baixo');
+  lados('esq');
+  lados('dir');
+  return out;
+}
+
+let OBSTACULOS = [];
+function construirObstaculos() {
+  OBSTACULOS = [];
+  COMODOS.forEach(c => OBSTACULOS.push(...gerarParedesDoComodo(c)));
+  MOVEIS.forEach(m => OBSTACULOS.push({ x: m.x, y: m.y, w: m.w, h: m.h }));
+  CARROS.forEach(c => OBSTACULOS.push({ x: c.x, y: c.y, w: c.w, h: c.h }));
+}
+construirObstaculos();
+
+// ============== COLISÃO ==============
+function colideRetangulo(r, lista = OBSTACULOS) {
+  for (const o of lista) {
+    if (r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y) return true;
+  }
+  return false;
+}
+function dentroBuraco(r) {
+  return r.x < BURACO.x + BURACO.w && r.x + r.w > BURACO.x &&
+         r.y < BURACO.y + BURACO.h && r.y + r.h > BURACO.y;
+}
+
+// ============== ESTADO DO JOGO ==============
+const ESTADOS = { COM_PESSOA: 0, VOANDO: 1, NO_CHAO: 2, COM_CACHORRO: 3 };
+
+const pessoa = {
+  x: 70, y: 490,
+  w: 28, h: 40,
+  vel: 1.8,
+  dirX: 0, dirY: 1,
+  ultDir: 'baixo'
+};
+const cachorro = {
+  x: 160, y: 500,
+  w: 28, h: 28,
+  vel: 2.3,
+  alvoX: 0, alvoY: 0,
+  trocaAlvoEm: 0,
+  framesPreso: 0,
+  desesperoFrames: 0,
+  desesperoDir: { x: 0, y: 0 }
+};
+const bola = {
+  x: 0, y: 0,
+  w: 12, h: 12,
+  vx: 0, vy: 0
+};
+let estadoBola = ESTADOS.COM_PESSOA;
+let capturas = 0;
+let sprites = {};
+let gameOver = false;
+
+// ============== BALÕES DE FALA (Rhayssa chamando Juquinha) ==============
+const FRASES_RHAYSSA = [
+  'Volta aqui Juquinha!',
+  'Juquinhaaaaa!',
+  'Vem cá Juquinha!',
+  'Para Juquinha!',
+  'Juquinha, devolve!'
+];
+let balaoFala = null;        // { texto, fim }
+let proximoBalaoEm = 0;
+
+function atualizarBalao() {
+  // só fala quando o Juquinha está com a bola
+  if (estadoBola !== ESTADOS.COM_CACHORRO || gameOver) {
+    balaoFala = null;
+    proximoBalaoEm = 0;
+    return;
+  }
+  const agora = performance.now();
+  if (proximoBalaoEm === 0) proximoBalaoEm = agora + 600;  // primeira fala logo após pegar
+  if (agora > proximoBalaoEm) {
+    const t = FRASES_RHAYSSA[Math.floor(Math.random() * FRASES_RHAYSSA.length)];
+    balaoFala = { texto: t, fim: agora + 1700 };
+    proximoBalaoEm = agora + 2800 + Math.random() * 2200;
+  }
+  if (balaoFala && agora > balaoFala.fim) balaoFala = null;
+}
+
+function renderBalao() {
+  if (!balaoFala) return;
+  const texto = balaoFala.texto;
+  const px = pessoa.x + pessoa.w / 2;
+  const py = pessoa.y - 6;
+
+  ctx.font = 'bold 13px monospace';
+  const padding = 8;
+  const tw = ctx.measureText(texto).width + padding * 2;
+  const th = 22;
+  const bx = px - tw / 2;
+  const by = py - th;
+
+  // sombra
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(bx + 2, by + 2, tw, th);
+
+  // balão branco
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.fillRect(bx, by, tw, th);
+  ctx.strokeRect(bx, by, tw, th);
+
+  // ponta apontando pra cabeça
+  ctx.beginPath();
+  ctx.moveTo(px - 5, by + th);
+  ctx.lineTo(px, by + th + 7);
+  ctx.lineTo(px + 5, by + th);
+  ctx.closePath();
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(px - 5, by + th);
+  ctx.lineTo(px, by + th + 7);
+  ctx.lineTo(px + 5, by + th);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // tampa a parte de cima da ponta (pra não cortar o balão)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px - 4, by + th - 1, 9, 2);
+
+  // texto
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(texto, px, by + th / 2);
+  ctx.textAlign = 'start';
+  ctx.textBaseline = 'alphabetic';
+}
+
+// ============== DESAFIO BÔNUS (timer de 20s + 2 bolinhas extras) ==============
+const DESAFIO = {
+  ativo: false,
+  vermelha: null,     // { x, y, pegou }
+  amarela: null,      // { x, y, pegou }
+  azulRecuperada: false,
+  inicioMs: 0,
+  duracaoMs: 20000
+};
+
+function spawnBolinhaBonus() {
+  const tam = 14;
+  for (let i = 0; i < 60; i++) {
+    const x = 40 + Math.random() * (W - 80);
+    const y = 40 + Math.random() * (H - 80);
+    const teste = { x, y, w: tam, h: tam };
+    if (colideRetangulo(teste)) continue;
+    if (dentroBuraco({ x: x - 4, y: y - 4, w: tam + 8, h: tam + 8 })) continue;
+    if (Math.hypot(x - pessoa.x, y - pessoa.y) < 130) continue;
+    return { x, y, pegou: false };
+  }
+  return { x: 400, y: 300, pegou: false };
+}
+
+function iniciarDesafio() {
+  DESAFIO.ativo = true;
+  DESAFIO.vermelha = spawnBolinhaBonus();
+  DESAFIO.amarela = spawnBolinhaBonus();
+  DESAFIO.azulRecuperada = false;
+  DESAFIO.inicioMs = performance.now();
+}
+
+function pararDesafio() {
+  DESAFIO.ativo = false;
+  DESAFIO.vermelha = null;
+  DESAFIO.amarela = null;
+  DESAFIO.azulRecuperada = false;
+  hudTimer.textContent = '--';
+  hudBonus.textContent = '-/2';
+}
+
+function rhayssaCansou() {
+  gameOver = true;
+  aviso.innerHTML = 'Rhayssa cansou! 😴<br><br><b>Aperte ENTER pra recomeçar</b>';
+  aviso.style.display = 'block';
+}
+
+function updateDesafio() {
+  if (!DESAFIO.ativo || gameOver) return;
+
+  // checa colisão pessoa-bonus
+  const hp = hitboxPessoa(pessoa);
+  for (const cor of ['vermelha', 'amarela']) {
+    const b = DESAFIO[cor];
+    if (!b || b.pegou) continue;
+    if (hp.x < b.x + 14 && hp.x + hp.w > b.x && hp.y < b.y + 14 && hp.y + hp.h > b.y) {
+      b.pegou = true;
+    }
+  }
+
+  // tempo restante
+  const restanteMs = DESAFIO.duracaoMs - (performance.now() - DESAFIO.inicioMs);
+  hudTimer.textContent = Math.max(0, restanteMs / 1000).toFixed(1) + 's';
+  const pegos = (DESAFIO.vermelha.pegou ? 1 : 0) + (DESAFIO.amarela.pegou ? 1 : 0);
+  hudBonus.textContent = pegos + '/2';
+
+  // venceu — pegou tudo
+  if (DESAFIO.vermelha.pegou && DESAFIO.amarela.pegou && DESAFIO.azulRecuperada) {
+    pararDesafio();
+    hudEstado.textContent = 'Boa, Rhayssa! Jogue de novo 🎾';
+    return;
+  }
+
+  // tempo zerou — Rhayssa cansou
+  if (restanteMs <= 0) {
+    rhayssaCansou();
+  }
+}
+
+// ============== ENTRADA ==============
+const teclas = {};
+window.addEventListener('keydown', e => {
+  teclas[e.key.toLowerCase()] = true;
+  if (e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault();
+    arremessarBolinha();
+  }
+  if (gameOver && (e.key === 'Enter' || e.key === ' ')) {
+    reiniciar();
+  }
+});
+window.addEventListener('keyup', e => { teclas[e.key.toLowerCase()] = false; });
+
+// ============== CONTROLES TOUCH (joystick + botão) ==============
+const joystickEl = document.getElementById('joystick');
+const joystickStickEl = document.getElementById('joystick-stick');
+const btnArremessoEl = document.getElementById('btn-arremesso');
+let joystickAtivo = false;
+let joystickTouchId = null;
+let inputAnalogX = 0;
+let inputAnalogY = 0;
+const JOYSTICK_RAIO_MAX = 40; // raio máximo de deslocamento do manete dentro da base
+
+function atualizarStickVisual(dx, dy) {
+  joystickStickEl.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+
+function tratarTouchJoystick(touch) {
+  const rect = joystickEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  let dx = touch.clientX - cx;
+  let dy = touch.clientY - cy;
+  const dist = Math.hypot(dx, dy);
+  if (dist > JOYSTICK_RAIO_MAX) {
+    dx = dx * JOYSTICK_RAIO_MAX / dist;
+    dy = dy * JOYSTICK_RAIO_MAX / dist;
+  }
+  atualizarStickVisual(dx, dy);
+  inputAnalogX = dx / JOYSTICK_RAIO_MAX;
+  inputAnalogY = dy / JOYSTICK_RAIO_MAX;
+}
+
+function resetarJoystick() {
+  joystickAtivo = false;
+  joystickTouchId = null;
+  inputAnalogX = 0;
+  inputAnalogY = 0;
+  atualizarStickVisual(0, 0);
+}
+
+joystickEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (joystickAtivo) return;
+  const t = e.changedTouches[0];
+  joystickTouchId = t.identifier;
+  joystickAtivo = true;
+  tratarTouchJoystick(t);
+}, { passive: false });
+
+window.addEventListener('touchmove', e => {
+  if (!joystickAtivo) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === joystickTouchId) {
+      e.preventDefault();
+      tratarTouchJoystick(t);
+      return;
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', e => {
+  if (!joystickAtivo) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === joystickTouchId) {
+      resetarJoystick();
+      return;
+    }
+  }
+}, { passive: false });
+window.addEventListener('touchcancel', resetarJoystick);
+
+btnArremessoEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (gameOver) reiniciar();
+  else arremessarBolinha();
+}, { passive: false });
+btnArremessoEl.addEventListener('click', e => {
+  e.preventDefault();
+  if (gameOver) reiniciar();
+  else arremessarBolinha();
+});
+
+const btnReiniciarEl = document.getElementById('btn-reiniciar');
+btnReiniciarEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  reiniciar();
+}, { passive: false });
+btnReiniciarEl.addEventListener('click', e => {
+  e.preventDefault();
+  reiniciar();
+});
+
+function lerDirecaoPessoa() {
+  let dx = 0, dy = 0;
+  if (teclas['arrowleft'] || teclas['a']) dx -= 1;
+  if (teclas['arrowright'] || teclas['d']) dx += 1;
+  if (teclas['arrowup'] || teclas['w']) dy -= 1;
+  if (teclas['arrowdown'] || teclas['s']) dy += 1;
+  // sobrescreve com joystick analógico se estiver sendo usado
+  if (joystickAtivo && (Math.abs(inputAnalogX) > 0.15 || Math.abs(inputAnalogY) > 0.15)) {
+    dx = inputAnalogX;
+    dy = inputAnalogY;
+  }
+  return { dx, dy };
+}
+
+// ============== HITBOX ==============
+function hitboxPessoa(p) {
+  return { x: p.x + 4, y: p.y + p.h - 14, w: p.w - 8, h: 12 };
+}
+function hitboxCachorro(c) {
+  return { x: c.x + 4, y: c.y + c.h - 12, w: c.w - 8, h: 10 };
+}
+function hitboxBola(b) {
+  return { x: b.x, y: b.y, w: b.w, h: b.h };
+}
+
+// ============== ARREMESSO ==============
+function arremessarBolinha() {
+  if (estadoBola !== ESTADOS.COM_PESSOA || gameOver) return;
+  const h = hitboxPessoa(pessoa);
+  bola.x = h.x + h.w / 2 - bola.w / 2;
+  bola.y = h.y - bola.h;
+  const FOR = 6.5;
+  bola.vx = pessoa.dirX * FOR;
+  bola.vy = pessoa.dirY * FOR;
+  if (bola.vx === 0 && bola.vy === 0) {
+    bola.vy = -FOR;
+  }
+  estadoBola = ESTADOS.VOANDO;
+  iniciarDesafio();
+}
+
+// ============== MOVIMENTO ==============
+function tentaMover(ent, dx, dy) {
+  if (dx !== 0) {
+    ent.x += dx;
+    const hb = ent === pessoa ? hitboxPessoa(ent) : hitboxCachorro(ent);
+    if (colideRetangulo(hb) || hb.x < 0 || hb.x + hb.w > W) ent.x -= dx;
+  }
+  if (dy !== 0) {
+    ent.y += dy;
+    const hb = ent === pessoa ? hitboxPessoa(ent) : hitboxCachorro(ent);
+    if (colideRetangulo(hb) || hb.y < 0 || hb.y + hb.h > H) ent.y -= dy;
+  }
+}
+
+function updatePessoa() {
+  if (gameOver) return;
+  const { dx, dy } = lerDirecaoPessoa();
+  if (dx !== 0 || dy !== 0) {
+    pessoa.dirX = dx;
+    pessoa.dirY = dy;
+    if (Math.abs(dx) > Math.abs(dy)) pessoa.ultDir = dx > 0 ? 'direita' : 'esquerda';
+    else pessoa.ultDir = dy > 0 ? 'baixo' : 'cima';
+  }
+  // velocidade proporcional à magnitude (joystick analógico), limitada a vel
+  const mag = Math.hypot(dx, dy);
+  let mvx = 0, mvy = 0;
+  if (mag > 0) {
+    const fator = Math.min(1, mag) / mag;
+    mvx = dx * fator * pessoa.vel;
+    mvy = dy * fator * pessoa.vel;
+  }
+  tentaMover(pessoa, mvx, mvy);
+
+  if (dentroBuraco(hitboxPessoa(pessoa))) {
+    cair('A pessoa caiu no buraco!');
+  }
+}
+
+function updateBola() {
+  if (estadoBola === ESTADOS.COM_PESSOA) {
+    const h = hitboxPessoa(pessoa);
+    bola.x = h.x + h.w / 2 - bola.w / 2;
+    bola.y = h.y - bola.h - 4;
+  } else if (estadoBola === ESTADOS.COM_CACHORRO) {
+    const h = hitboxCachorro(cachorro);
+    bola.x = h.x + h.w / 2 - bola.w / 2;
+    bola.y = h.y - bola.h;
+  } else if (estadoBola === ESTADOS.VOANDO) {
+    bola.x += bola.vx;
+    if (colideRetangulo(hitboxBola(bola)) || bola.x < 0 || bola.x + bola.w > W) {
+      bola.x -= bola.vx;
+      bola.vx *= -0.5;
+    }
+    bola.y += bola.vy;
+    if (colideRetangulo(hitboxBola(bola)) || bola.y < 0 || bola.y + bola.h > H) {
+      bola.y -= bola.vy;
+      bola.vy *= -0.5;
+    }
+    bola.vx *= 0.96;
+    bola.vy *= 0.96;
+    if (Math.abs(bola.vx) < 0.3 && Math.abs(bola.vy) < 0.3) {
+      bola.vx = 0;
+      bola.vy = 0;
+      estadoBola = ESTADOS.NO_CHAO;
+      hudEstado.textContent = 'o Juquinha vai buscar';
+    }
+  }
+  if (estadoBola === ESTADOS.NO_CHAO) {
+    const hc = hitboxCachorro(cachorro);
+    const hb = hitboxBola(bola);
+    if (hc.x < hb.x + hb.w && hc.x + hc.w > hb.x && hc.y < hb.y + hb.h && hc.y + hc.h > hb.y) {
+      estadoBola = ESTADOS.COM_CACHORRO;
+      hudEstado.textContent = 'corra atrás do Juquinha!';
+      novoAlvoCachorro();
+    }
+  }
+  if (estadoBola === ESTADOS.COM_CACHORRO) {
+    const hp = hitboxPessoa(pessoa);
+    const hc = hitboxCachorro(cachorro);
+    if (hp.x < hc.x + hc.w && hp.x + hp.w > hc.x && hp.y < hc.y + hc.h && hp.y + hc.h > hc.y) {
+      estadoBola = ESTADOS.COM_PESSOA;
+      capturas++;
+      hudCapturas.textContent = capturas;
+      hudEstado.textContent = 'jogue a bolinha de novo!';
+      if (DESAFIO.ativo) DESAFIO.azulRecuperada = true;
+    }
+  }
+}
+
+function novoAlvoCachorro() {
+  for (let i = 0; i < 30; i++) {
+    const ax = 50 + Math.random() * (W - 100);
+    const ay = 50 + Math.random() * (H - 100);
+    const teste = { x: ax, y: ay, w: cachorro.w, h: cachorro.h };
+    if (colideRetangulo(teste)) continue;
+    if (dentroBuraco(teste)) continue;
+    const dxp = ax - pessoa.x, dyp = ay - pessoa.y;
+    const dist = Math.hypot(dxp, dyp);
+    if (dist < 180) continue;
+    cachorro.alvoX = ax;
+    cachorro.alvoY = ay;
+    cachorro.trocaAlvoEm = performance.now() + 3000 + Math.random() * 2000;
+    return;
+  }
+  cachorro.alvoX = 400 + Math.random() * 200;
+  cachorro.alvoY = 300 + Math.random() * 200;
+  cachorro.trocaAlvoEm = performance.now() + 2000;
+}
+
+// "olha à frente" — checa se o hitbox do cachorro colidiria deslocado por (dirX, dirY) * dist
+function obstaculoAFrente(dirX, dirY, dist) {
+  const hb = hitboxCachorro(cachorro);
+  return colideRetangulo({
+    x: hb.x + dirX * dist,
+    y: hb.y + dirY * dist,
+    w: hb.w,
+    h: hb.h
+  });
+}
+// procura entre 16 direções a que mais aproxima do alvo, ignorando as bloqueadas
+function melhorDirecaoLivre(alvoCx, alvoCy, lookDist = 18) {
+  const cx = cachorro.x + cachorro.w / 2;
+  const cy = cachorro.y + cachorro.h - 5;
+  let melhor = null;
+  let menorDist = Infinity;
+  for (let i = 0; i < 16; i++) {
+    const ang = (i / 16) * Math.PI * 2;
+    const ndx = Math.cos(ang);
+    const ndy = Math.sin(ang);
+    if (obstaculoAFrente(ndx, ndy, lookDist)) continue;
+    // estima posição após esse movimento e mede distância ao alvo
+    const nx = cx + ndx * lookDist;
+    const ny = cy + ndy * lookDist;
+    const d = Math.hypot(alvoCx - nx, alvoCy - ny);
+    if (d < menorDist) {
+      menorDist = d;
+      melhor = { x: ndx, y: ndy };
+    }
+  }
+  return melhor;
+}
+
+function updateCachorro() {
+  if (gameOver) return;
+  let alvoX, alvoY, vel = cachorro.vel;
+
+  if (estadoBola === ESTADOS.NO_CHAO) {
+    alvoX = bola.x + bola.w / 2 - cachorro.w / 2;
+    alvoY = bola.y + bola.h / 2 - cachorro.h / 2;
+    vel = 2.5;
+  } else if (estadoBola === ESTADOS.COM_CACHORRO) {
+    const distAlvo = Math.hypot(cachorro.x - cachorro.alvoX, cachorro.y - cachorro.alvoY);
+    if (distAlvo < 20 || performance.now() > cachorro.trocaAlvoEm) {
+      novoAlvoCachorro();
+    }
+    const distPessoa = Math.hypot(cachorro.x - pessoa.x, cachorro.y - pessoa.y);
+    if (distPessoa < 70 && performance.now() > cachorro.trocaAlvoEm - 2500) {
+      novoAlvoCachorro();
+    }
+    alvoX = cachorro.alvoX;
+    alvoY = cachorro.alvoY;
+    vel = 2.1;
+  } else {
+    return;
+  }
+
+  const dx = alvoX - cachorro.x;
+  const dy = alvoY - cachorro.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1) return;
+  let dirX = dx / dist;
+  let dirY = dy / dist;
+
+  // MODO DESESPERO: se ficou preso por muito tempo, força direção aleatória por uns frames
+  if (cachorro.desesperoFrames > 0) {
+    dirX = cachorro.desesperoDir.x;
+    dirY = cachorro.desesperoDir.y;
+    cachorro.desesperoFrames--;
+  } else if (obstaculoAFrente(dirX, dirY, 18)) {
+    // STEERING: testa 16 direções em volta, escolhe a livre que mais aproxima do alvo
+    const m = melhorDirecaoLivre(alvoX + cachorro.w / 2, alvoY + cachorro.h / 2, 18);
+    if (m) {
+      dirX = m.x;
+      dirY = m.y;
+    }
+  }
+
+  const mvx = dirX * vel;
+  const mvy = dirY * vel;
+
+  const ax = cachorro.x, ay = cachorro.y;
+  tentaMover(cachorro, mvx, mvy);
+  const moveu = Math.abs(cachorro.x - ax) > 0.1 || Math.abs(cachorro.y - ay) > 0.1;
+
+  if (!moveu) {
+    cachorro.framesPreso++;
+    if (cachorro.desesperoFrames === 0) tentaMover(cachorro, mvy, -mvx);
+    // se preso por muito tempo, força desespero: escolhe uma direção COMPROVADAMENTE livre
+    if (cachorro.framesPreso >= 6) {
+      if (estadoBola === ESTADOS.COM_CACHORRO) novoAlvoCachorro();
+      const livres = [];
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const nx = Math.cos(a), ny = Math.sin(a);
+        if (!obstaculoAFrente(nx, ny, 14)) livres.push({ x: nx, y: ny });
+      }
+      if (livres.length > 0) {
+        cachorro.desesperoDir = livres[Math.floor(Math.random() * livres.length)];
+        cachorro.desesperoFrames = 20 + Math.floor(Math.random() * 15);
+      }
+      cachorro.framesPreso = 0;
+    }
+  } else {
+    cachorro.framesPreso = 0;
+  }
+
+  if (dentroBuraco(hitboxCachorro(cachorro))) {
+    cair('O Juquinha caiu no buraco!');
+  }
+}
+
+function cair(msg) {
+  gameOver = true;
+  aviso.innerHTML = msg + '<br><br><b>Aperte ENTER pra recomeçar</b>';
+  aviso.style.display = 'block';
+}
+
+function reiniciar() {
+  pessoa.x = 70; pessoa.y = 490; pessoa.dirX = 0; pessoa.dirY = 1;
+  cachorro.x = 160; cachorro.y = 500;
+  bola.x = 0; bola.y = 0; bola.vx = 0; bola.vy = 0;
+  estadoBola = ESTADOS.COM_PESSOA;
+  capturas = 0;
+  hudCapturas.textContent = 0;
+  hudEstado.textContent = 'pegue a bolinha';
+  gameOver = false;
+  aviso.style.display = 'none';
+  pararDesafio();
+  balaoFala = null;
+  proximoBalaoEm = 0;
+}
+
+// ============== RENDER DO MAPA ==============
+function renderMapa() {
+  desenhaCimento();
+
+  desenhaComodo(40, 60, 220, 180, [{ lado: 'dir', pos: 80, tam: 30 }]);
+  armarioH(110, 68, 80, 30);
+  cama(50, 100, 90, 45);
+  tv(212, 80, 40, 50);
+
+  desenhaBuraco(BURACO.x, BURACO.y, BURACO.w, BURACO.h);
+
+  desenhaComodo(40, 380, 220, 200, [{ lado: 'dir', pos: 100, tam: 30 }]);
+  cama(70, 410, 90, 50);
+  armarioH(110, 542, 80, 30);
+
+  desenhaGaragem(310, 60, 200, 520);
+  carro(335, 110, COR.carroBranco);
+  carro(335, 380, COR.caminhonete, 50, 110);
+
+  desenhaComodo(560, 60, 360, 180, [{ lado: 'baixo', pos: 290, tam: 30 }]);
+  cama(580, 90, 90, 50);
+  armario(870, 80, 30, 50);
+
+  desenhaComodo(560, 240, 360, 180, [
+    { lado: 'cima', pos: 290, tam: 30 },
+    { lado: 'baixo', pos: 290, tam: 30 },
+    { lado: 'esq', pos: 70, tam: 30 }
+  ]);
+  tv(575, 250, 80, 30);
+  sofa(568, 350, 30, 60);
+  sofa(600, 384, 80, 28);
+
+  desenhaComodo(560, 420, 360, 200, [
+    { lado: 'cima', pos: 290, tam: 30 },
+    { lado: 'esq', pos: 50, tam: 30 }
+  ]);
+  pia(568, 552, 30, 60);
+  mesa(700, 433, 80, 40);
+  fogao(717, 577, 45, 35);
+  armario(882, 495, 30, 60);
+}
+
+// ============== RENDER DE PERSONAGENS ==============
+function desenhaSombra(x, y, w) {
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y, w / 2, w / 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function renderEntidades() {
+  const ents = [
+    { tipo: 'pessoa', y: pessoa.y + pessoa.h },
+    { tipo: 'cachorro', y: cachorro.y + cachorro.h }
+  ];
+  if (estadoBola === ESTADOS.NO_CHAO || estadoBola === ESTADOS.VOANDO) {
+    ents.push({ tipo: 'bola', y: bola.y + bola.h });
+  }
+  ents.sort((a, b) => a.y - b.y);
+
+  for (const e of ents) {
+    if (e.tipo === 'pessoa') {
+      desenhaSombra(pessoa.x + 4, pessoa.y + pessoa.h - 2, pessoa.w - 8);
+      if (sprites.pessoa) {
+        ctx.drawImage(sprites.pessoa, pessoa.x, pessoa.y, pessoa.w, pessoa.h);
+      } else {
+        ctx.fillStyle = '#d49090';
+        ctx.fillRect(pessoa.x, pessoa.y, pessoa.w, pessoa.h);
+      }
+    }
+    if (e.tipo === 'cachorro') {
+      desenhaSombra(cachorro.x + 2, cachorro.y + cachorro.h - 2, cachorro.w - 4);
+      if (sprites.cachorro) {
+        ctx.drawImage(sprites.cachorro, cachorro.x, cachorro.y, cachorro.w, cachorro.h);
+      } else {
+        ctx.fillStyle = '#3a2a1a';
+        ctx.fillRect(cachorro.x, cachorro.y, cachorro.w, cachorro.h);
+      }
+    }
+    if (e.tipo === 'bola') {
+      if (sprites.bola) {
+        ctx.drawImage(sprites.bola, bola.x, bola.y, bola.w, bola.h);
+      } else {
+        ctx.fillStyle = '#3a7add';
+        ctx.beginPath();
+        ctx.arc(bola.x + bola.w / 2, bola.y + bola.h / 2, bola.w / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  if (estadoBola === ESTADOS.COM_PESSOA || estadoBola === ESTADOS.COM_CACHORRO) {
+    if (sprites.bola) {
+      ctx.drawImage(sprites.bola, bola.x, bola.y, bola.w, bola.h);
+    } else {
+      ctx.fillStyle = '#3a7add';
+      ctx.beginPath();
+      ctx.arc(bola.x + bola.w / 2, bola.y + bola.h / 2, bola.w / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function renderBonus() {
+  if (!DESAFIO.ativo) return;
+  const desenhar = (b, base, brilho) => {
+    if (!b || b.pegou) return;
+    const cx = b.x + 7, cy = b.y + 7;
+    // sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 6, 6, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // contorno preto
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.fill();
+    // corpo
+    ctx.fillStyle = base;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+    ctx.fill();
+    // brilho
+    ctx.fillStyle = brilho;
+    ctx.beginPath();
+    ctx.arc(cx - 2, cy - 2, 2, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  desenhar(DESAFIO.vermelha, '#dd2020', '#ffaaaa');
+  desenhar(DESAFIO.amarela, '#e8c020', '#fff080');
+}
+
+// ============== LOOP ==============
+function frame() {
+  updatePessoa();
+  updateBola();
+  updateCachorro();
+  updateDesafio();
+  atualizarBalao();
+  renderMapa();
+  renderBonus();
+  renderEntidades();
+  renderBalao();
+  requestAnimationFrame(frame);
+}
+
+// ============== INÍCIO ==============
+function iniciar() {
+  reiniciar();
+  frame();
+
+  carregaSprite('personagem.png').then(s => sprites.pessoa = s)
+    .catch(err => console.error('personagem.png:', err));
+  carregaSprite('cachorro.png').then(s => sprites.cachorro = s)
+    .catch(err => console.error('cachorro.png:', err));
+  carregaSprite('bolinha.png').then(s => sprites.bola = s)
+    .catch(err => console.error('bolinha.png:', err));
+}
+iniciar();
+</script>
+</body>
+</html>
