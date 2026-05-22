@@ -23,7 +23,7 @@ Joguinho 2D em pixel art onde a personagem arremessa uma bolinha de tênis, o ca
    - Pegar a bolinha vermelha
    - Pegar a bolinha amarela
    - Encostar no Juquinha pra recuperar a bolinha azul
-5. Se acabar o tempo, aparece **"Rhayssa cansou! 😴"** e o jogo reinicia.
+5. Se acabar o tempo, aparece **"[Personagem] cansou! 😴"** e o jogo reinicia.
 6. Cuidado com o **buraco** no chão fora do quarto superior! 🕳️
 
 ## Tecnologia
